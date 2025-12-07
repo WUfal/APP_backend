@@ -9,7 +9,6 @@ public record BookmarkDto(
         String title,
         String createdAt
 ) {
-    // 辅助方法：从 Entity 转换
     public static BookmarkDto fromEntity(Bookmark entity) {
         return new BookmarkDto(
                 entity.getId(),

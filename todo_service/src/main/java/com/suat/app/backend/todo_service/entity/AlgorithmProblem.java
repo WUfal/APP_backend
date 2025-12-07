@@ -24,4 +24,7 @@ public class AlgorithmProblem {
     @OneToMany(mappedBy = "problem", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC") // 内容块必须按顺序
     private List<AlgorithmContentBlock> contentBlocks;
+
+    @Column(name = "visualization_url") // 对应数据库的 visualization_url 列
+    private String visualizationUrl;
 }

@@ -5,13 +5,11 @@ import com.suat.app.backend.todo_service.dto.ModuleDetail;
 import com.suat.app.backend.todo_service.service.BeginnerLearnService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+import org.springframework.security.core.Authentication;
+import java.util.Set;
 @RestController
 @RequestMapping("/api/v1/beginner") // A 路径的 API 前缀
 public class BeginnerLearnController {
@@ -40,5 +38,26 @@ public class BeginnerLearnController {
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build(); // 404
         }
+    }
+    // (新增 API 3 - 标记完成)
+    @PostMapping("/lesson/{lessonId}/complete")
+    public ResponseEntity<Void> markLessonComplete(
+            @PathVariable Long lessonId,
+            Authentication authentication) { // <--- (获取当前登录的用户)
+
+        try {
+            String username = authentication.getName(); // (获取用户名)
+            beginnerLearnService.markLessonAsComplete(username, lessonId);
+            return ResponseEntity.ok().build(); // 返回 200 OK
+        } catch (RuntimeException e) {
+            // (如果用户或关卡未找到)
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // (新增 API 4 - 获取进度)
+    @GetMapping("/progress/ids")
+    public Set<Long> getMyCompletedLessonIds(Authentication authentication) {
+        return beginnerLearnService.getCompletedLessonIds(authentication.getName());
     }
 }

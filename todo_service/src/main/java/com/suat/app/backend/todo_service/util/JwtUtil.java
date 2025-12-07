@@ -21,7 +21,7 @@ public class JwtUtil {
     );
 
     // 2. Token 有效期 (例如：10 小时)
-    private static final long EXPIRATION_TIME_MS = 1000 * 60 * 60 * 10; // 10 hours
+    private static final long EXPIRATION_TIME_MS = 1000  * 10 *60*60; // 10 hours
 
     /**
      * 核心：生成 Token

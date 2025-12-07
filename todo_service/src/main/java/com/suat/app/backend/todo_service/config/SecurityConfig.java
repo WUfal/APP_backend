@@ -55,10 +55,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 2a. 允许 (permit) 任何人访问 /api/auth/** (登录/注册 API)
                         .requestMatchers("/api/auth/**").permitAll()
-
+                        .requestMatchers("/viz/**").permitAll()
                         // 2b. (临时) 允许任何人访问我们的内容 API，方便调试
                         .requestMatchers("/api/v1/**").authenticated()
-
+                        // --- ⬇️ (关键修复) 允许访问全局错误路径 ⬇️ ---
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/user/**").authenticated()
                         // 2c. 其他所有请求都需要认证 (虽然上面已经全放了)
                         .anyRequest().authenticated()

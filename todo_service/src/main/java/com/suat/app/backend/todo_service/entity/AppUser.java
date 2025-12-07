@@ -23,4 +23,9 @@ public class AppUser {
     @Column(name = "selected_path")
     private String selectedPath;
     // 我们可以稍后在这里添加 'role' (角色) 等字段
+    @Column(length = 50)
+    private String nickname;
+
+    @Column(name = "avatar_id", length = 50)
+    private String avatarId;
 }

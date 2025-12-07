@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.security.core.Authentication;
 @RestController
 @RequestMapping("/api/v1/sandbox") // API 前缀
 public class SandboxController {
@@ -22,10 +22,14 @@ public class SandboxController {
      * (这个 API 会被 /api/v1/** 规则自动保护)
      */
     @PostMapping("/run")
-    public ResponseEntity<CodeRunResponse> runCode(@RequestBody CodeRunRequest request) {
-
+    public ResponseEntity<CodeRunResponse> runCode(
+            @RequestBody CodeRunRequest request,
+            Authentication authentication
+    ) {
+        // 2. (新增) 获取用户名
+        String username = authentication.getName();
         // 将工作委托给 Service
-        CodeRunResponse response = sandboxService.compileAndRun(request.code());
+        CodeRunResponse response = sandboxService.compileAndRun(request.code(), username);
 
         return ResponseEntity.ok(response);
     }

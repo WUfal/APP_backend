@@ -2,10 +2,11 @@ package com.suat.app.backend.todo_service.Controller;
 
 import com.suat.app.backend.todo_service.dto.AuthRequest;
 import com.suat.app.backend.todo_service.dto.AuthResponse;
+import com.suat.app.backend.todo_service.dto.UpdateProfileRequest;
 import com.suat.app.backend.todo_service.entity.AppUser;
 import com.suat.app.backend.todo_service.repository.AppUserRepository;
 import com.suat.app.backend.todo_service.util.JwtUtil;
-
+import com.suat.app.backend.todo_service.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,10 +15,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth") // 路径前缀
@@ -34,6 +32,9 @@ public class AuthController {
 
     @Autowired
     private JwtUtil jwtUtil; // 来自 util
+
+    @Autowired
+    private UserService userService;
 
     /**
      * API 1: 用户注册
@@ -52,7 +53,10 @@ public class AuthController {
         user.setUsername(authRequest.username());
         // 3. (关键) 必须加密密码
         user.setPassword(passwordEncoder.encode(authRequest.password()));
-
+// --- ⬇️ (关键新增) 设置默认资料 ⬇️ ---
+        user.setNickname(authRequest.username()); // <--- 改成 authRequest
+        user.setAvatarId("default");          // 默认头像 = default
+        // --- ⬆️ (新增结束) ⬆️ ---
         // 4. 保存到数据库
         appUserRepository.save(user);
 
@@ -91,4 +95,12 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(jwt, selectedPath));
 
     }
+    @PutMapping("/api/user/profile")
+    public ResponseEntity<Void> updateProfile(
+            @RequestBody UpdateProfileRequest request,
+            Authentication authentication) {
+        userService.updateProfile(authentication.getName(), request.nickname(), request.avatarId());
+        return ResponseEntity.ok().build();
+    }
+
 }

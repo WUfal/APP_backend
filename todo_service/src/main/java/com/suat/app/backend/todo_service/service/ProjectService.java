@@ -30,8 +30,11 @@ public class ProjectService {
      */
     @Transactional(readOnly = true)
     public List<ProjectSummary> getAllProjects() {
-        // 1. 从数据库读取所有 Project 实体
-        List<Project> entityProjects = projectRepository.findAll();
+        // --- ⬇️ (关键修改) ⬇️ ---
+        // 1. 从数据库读取所有 Project 实体 (使用我们新的 JPQL 查询)
+        List<Project> entityProjects = projectRepository.findAllWithSteps();
+        // (旧: projectRepository.findAll();)
+        // --- ⬆️ (修改结束) ⬆️ ---
 
         // 2. 将 Entity 列表 转换为 DTO 列表
         return entityProjects.stream()

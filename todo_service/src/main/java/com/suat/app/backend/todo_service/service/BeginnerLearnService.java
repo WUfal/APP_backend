@@ -19,7 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
+import com.suat.app.backend.todo_service.entity.AppUser;
+import com.suat.app.backend.todo_service.entity.BeginnerLessonProgress;
+import com.suat.app.backend.todo_service.repository.AppUserRepository;
+import com.suat.app.backend.todo_service.repository.BeginnerLessonProgressRepository;
+import com.suat.app.backend.todo_service.repository.UserBadgeRepository; // <--- 1. (新增)
+import com.suat.app.backend.todo_service.service.BadgeService; // <--- 2. (新增)
+import java.util.Set;
 @Service
 public class BeginnerLearnService {
 
@@ -29,6 +35,11 @@ public class BeginnerLearnService {
     @Autowired
     private BeginnerLessonRepository lessonRepository;
 
+    @Autowired
+    private BadgeService badgeService; // <--- 3. (新增) 注入 BadgeService
+
+    @Autowired
+    private UserBadgeRepository userBadgeRepository; // <--- 4. (新增) 注入 UserBadgeRepo (用于检查)
     /**
      * API 1 的逻辑：获取所有"大关卡"列表 (用于A路径学习首页)
      */
@@ -56,6 +67,7 @@ public class BeginnerLearnService {
         // 2. 将 Lesson Entity 转换为 ModuleDetail DTO (完美复用)
         return convertLessonEntityToDetailDto(entityLesson);
     }
+
 
     // --- 辅助转换方法 ---
 
@@ -89,5 +101,49 @@ public class BeginnerLearnService {
                 entity.getContent(),
                 entity.getLanguage()
         );
+    }
+    @Autowired
+    private BeginnerLessonProgressRepository progressRepository; // <--- (新增)
+    @Autowired
+    private AppUserRepository appUserRepository; // <--- (新增)
+    // (新增一个辅助方法来获取当前用户)
+    private AppUser getCurrentUser(String username) {
+        return appUserRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    // (新增 API 3 - 标记完成)
+    @Transactional
+    public void markLessonAsComplete(String username, Long lessonId) {
+        AppUser user = getCurrentUser(username);
+        BeginnerLesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new RuntimeException("Lesson not found"));
+
+        // --- ⬇️ (关键修复) ⬇️ ---
+        // (我们不再检查 *任何* 徽章，而是检查 *特定* 徽章)
+        final String badgeId = "FIRST_COMPLETION";
+        boolean hasThisBadge = userBadgeRepository.existsByAppUserAndBadgeId(user, badgeId);
+        // --- ⬆️ (修复结束) ⬆️ ---
+
+        // (标记完成" 的逻辑 - 不变)
+        if (!progressRepository.existsByAppUserAndLessonId(user, lessonId)) {
+            BeginnerLessonProgress progress = new BeginnerLessonProgress();
+            progress.setAppUser(user);
+            progress.setLesson(lesson);
+            progressRepository.save(progress);
+        }
+
+        // (授予徽章的逻辑 - 已修改)
+        if (!hasThisBadge) {
+            // (调用 BadgeService 来授予“初来乍到”徽章)
+            badgeService.checkAndAwardBadge(user, badgeId);
+        }
+    }
+
+    // (新增 API 4 - 获取进度)
+    @Transactional(readOnly = true)
+    public Set<Long> getCompletedLessonIds(String username) {
+        AppUser user = getCurrentUser(username);
+        return progressRepository.findAllCompletedLessonIdsByAppUser(user);
     }
 }

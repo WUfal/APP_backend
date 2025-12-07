@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二叉搜索树第K小元素 - 算法可视化</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { background-color: #f8fafc; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        .node-transition { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .fade-enter { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* 连线动画 */
+        .line-draw { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: dash 2s linear forwards; }
+        @keyframes dash { to { stroke-dashoffset: 0; } }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // --- 图标组件 ---
+    const Icons = {
+        Play: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
+        Pause: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>,
+        Step: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>,
+        Reset: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12" /><path d="M3 3v9h9" /></svg>,
+        Settings: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
+        Shuffle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>,
+        GitBranch: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>,
+        Target: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>,
+        Layers: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+    };
+
+    // --- 树节点类 ---
+    class TreeNode {
+        constructor(val, left = null, right = null) {
+            this.val = val;
+            this.left = left;
+            this.right = right;
+            this.id = Math.random().toString(36).substr(2, 9);
+        }
+    }
+
+    const App = () => {
+        // --- 状态定义 ---
+        const [inputStr, setInputStr] = useState("[5,3,6,2,4,null,null,1]");
+        const [kInput, setKInput] = useState(3);
+        const [rootNode, setRootNode] = useState(null);
+
+        // 运行状态
+        const [mode, setMode] = useState("iterative"); // 'recursive' | 'iterative'
+        const [isPlaying, setIsPlaying] = useState(false);
+        const [isFinished, setIsFinished] = useState(false);
+        const [message, setMessage] = useState("准备就绪");
+
+        // 算法状态
+        const [currentNodeId, setCurrentNodeId] = useState(null);
+        const [visitedOrder, setVisitedOrder] = useState([]); // Array of vals
+        const [stack, setStack] = useState([]); // For visualization: Array of Node Objects
+        const [count, setCount] = useState(0);
+        const [foundVal, setFoundVal] = useState(null);
+
+        // 迭代法细粒度控制
+        // 指令栈: { node: TreeNode, action: 'GO_LEFT' | 'PROCESS' | 'GO_RIGHT' }
+        // 或者更简单：我们维护一个真实的 dfsStack (state stack) 和一个 curr 指针
+        const [dfsStack, setDfsStack] = useState([]);
+        const [curr, setCurr] = useState(null);
+        const [iterStep, setIterStep] = useState('INIT'); // INIT, PUSH_LEFT, POP_PROCESS, GO_RIGHT
+
+        // 递归法预计算
+        const [recursivePath, setRecursivePath] = useState([]);
+        const [recIndex, setRecIndex] = useState(0);
+
+        // --- 树的构建与布局 ---
+        const buildTree = (arr) => {
+            if (!arr || arr.length === 0) return null;
+            const root = new TreeNode(arr[0]);
+            const queue = [root];
+            let i = 1;
+            while (i < arr.length) {
+                const curr = queue.shift();
+                if (arr[i] !== null) {
+                    curr.left = new TreeNode(arr[i]);
+                    queue.push(curr.left);
+                }
+                i++;
+                if (i < arr.length && arr[i] !== null) {
+                    curr.right = new TreeNode(arr[i]);
+                    queue.push(curr.right);
+                }
+                i++;
+            }
+            return root;
+        };
+
+        // 计算节点坐标 (简单递归布局)
+        const calculateLayout = (node, depth = 0, x = 50, y = 50, spread = 25) => {
+            if (!node) return [];
+            const layout = [];
+            // 这里用百分比布局简化适配
+            const myX = x;
+            const myY = y;
+
+            // Left
+            if (node.left) {
+                layout.push(...calculateLayout(node.left, depth + 1, x - spread, y + 15, spread / 2));
+            }
+            // Right
+            if (node.right) {
+                layout.push(...calculateLayout(node.right, depth + 1, x + spread, y + 15, spread / 2));
+            }
+
+            // Add self last to be on top? No, order matters for lines.
+            // We'll return a flat list of nodes with coords.
+            node.x = myX;
+            node.y = myY;
+            return [node, ...layout]; // This structure is flat list of nodes with coords attached
+        };
+
+        // 扁平化树用于渲染连线和节点
+        const [flatNodes, setFlatNodes] = useState([]);
+
+        const parseInput = () => {
+            try {
+                const arr = JSON.parse(inputStr);
+                const k = parseInt(kInput);
+                if (!Array.isArray(arr)) throw new Error("输入必须是数组");
+                if (isNaN(k) || k < 1) throw new Error("K 必须是正整数");
+
+                const root = buildTree(arr);
+                setRootNode(root);
+
+                // Layout
+                // Initial spread needs to be wide enough
+                // Root at 50%, 40px.
+                const nodesWithCoords = [];
+                // Helper to recursively assign coords
+                const assignCoords = (n, x, y, offset) => {
+                    if (!n) return;
+                    n.x = x;
+                    n.y = y;
+                    nodesWithCoords.push(n);
+                    assignCoords(n.left, x - offset, y + 80, offset / 2);
+                    assignCoords(n.right, x + offset, y + 80, offset / 2);
+                };
+                assignCoords(root, 400, 50, 180); // Canvas width assumed ~800
+                setFlatNodes(nodesWithCoords);
+
+                resetState(root, k);
+                setMessage(`树已构建。K=${k}。点击开始寻找。`);
+            } catch (e) {
+                setMessage("输入格式错误: " + e.message);
+            }
+        };
+
+        const resetState = (root = rootNode, k = kInput) => {
+            setIsPlaying(false);
+            setIsFinished(false);
+            setMessage("状态已重置");
+
+            setCurrentNodeId(null);
+            setVisitedOrder([]);
+            setStack([]);
+            setCount(0);
+            setFoundVal(null);
+
+            // Iterative State
+            setDfsStack([]);
+            setCurr(root);
+            setIterStep('INIT');
+
+            // Recursive Pre-calc
+            const path = [];
+            const inorder = (n) => {
+                if (!n) return;
+                inorder(n.left);
+                path.push(n);
+                inorder(n.right);
+            };
+            inorder(root);
+            setRecursivePath(path);
+            setRecIndex(0);
+        };
+
+        const randomInput = () => {
+            // Generate a random BST
+            // 1. Generate sorted unique numbers
+            // 2. Build balanced BST from sorted array to input format
+            const count = 7 + Math.floor(Math.random() * 6); // 7-12 nodes
+            const nums = new Set();
+            while(nums.size < count) nums.add(Math.floor(Math.random() * 50) + 1);
+            const sorted = Array.from(nums).sort((a,b) => a-b);
+
+            // Helper to build level order array from BST structure
+            // But easier: Insert randomly? No, standard BST logic.
+            // Let's build a standard BST object first then level order traverse to get array string
+            const buildBST = (arr, start, end) => {
+                if (start > end) return null;
+                const mid = Math.floor((start + end) / 2);
+                const node = new TreeNode(sorted[mid]);
+                node.left = buildBST(arr, start, mid - 1);
+                node.right = buildBST(arr, mid + 1, end);
+                return node;
+            };
+            const root = buildBST(sorted, 0, sorted.length - 1);
+
+            // Serialize to LeetCode format (level order with nulls)
+            const res = [];
+            const queue = [root];
+            while(queue.length > 0) {
+                const n = queue.shift();
+                if (n) {
+                    res.push(n.val);
+                    queue.push(n.left);
+                    queue.push(n.right);
+                } else {
+                    res.push(null);
+                }
+            }
+            // Trim trailing nulls
+            while(res.length > 0 && res[res.length-1] === null) res.pop();
+
+            const randK = Math.floor(Math.random() * count) + 1;
+
+            setInputStr(JSON.stringify(res));
+            setKInput(randK);
+
+            // Auto load
+            // We need to wait for state update, but here we can just call logic
+            // But parseInput uses state... so we will just set input and let user click 'Load' or simulate it
+            // Better: separate logic. For now, let's just set string and call logic after timeout or manually call logic with params.
+            // React way: useEffect dependency or direct call.
+            // Direct call for randomness:
+            // We'll just update input UI, user has to click Load to match standard flow.
+            // Or we can manually invoke build here. Let's do manual invoke.
+            const rootObj = buildTree(res); // using the local res
+            setRootNode(rootObj);
+
+            const nodesWithCoords = [];
+            const assignCoords = (n, x, y, offset) => {
+                if (!n) return;
+                n.x = x;
+                n.y = y;
+                nodesWithCoords.push(n);
+                assignCoords(n.left, x - offset, y + 80, offset / 2);
+                assignCoords(n.right, x + offset, y + 80, offset / 2);
+            };
+            assignCoords(rootObj, 400, 50, 180);
+            setFlatNodes(nodesWithCoords);
+            resetState(rootObj, randK);
+            setMessage(`已生成随机 BST (节点数: ${count}, K: ${randK})`);
+        };
+
+        // --- 自动播放 ---
+        useEffect(() => {
+            let timer;
+            if (isPlaying && !isFinished) {
+                timer = setInterval(() => {
+                    stepForward();
+                }, mode === 'iterative' ? 1000 : 800);
+            }
+            return () => clearInterval(timer);
+        }, [isPlaying, isFinished, mode, iterStep, curr, dfsStack, count, recIndex, recursivePath]);
+
+        const stepForward = () => {
+            if (isFinished) return;
+            if (mode === 'iterative') {
+                stepIterative();
+            } else {
+                stepRecursive();
+            }
+        };
+
+        // 1. 迭代法 O(H + k)
+        const stepIterative = () => {
+            // Steps:
+            // 1. PUSH_LEFT: Push curr and go left until null
+            // 2. POP_PROCESS: Pop, check k, if done end, else set curr = right -> GO_LEFT
+
+            let myStack = [...dfsStack];
+            let myCurr = curr;
+            let myCount = count;
+            const k = parseInt(kInput);
+
+            if (iterStep === 'INIT') {
+                setIterStep('PUSH_LEFT');
+                setMessage("开始：从根节点出发，尽力向左走。");
+                return;
+            }
+
+            if (iterStep === 'PUSH_LEFT') {
+                if (myCurr) {
+                    myStack.push(myCurr);
+                    setDfsStack(myStack);
+                    setStack(myStack); // For UI
+                    setCurrentNodeId(myCurr.id);
+
+                    setMessage(`压入节点 ${myCurr.val}，向左探索...`);
+                    setCurr(myCurr.left);
+                    // Stay in PUSH_LEFT
+                } else {
+                    // Cannot go left anymore, switch to pop
+                    setIterStep('POP_PROCESS');
+                    setMessage("左侧到底 (NULL)，准备回溯 (出栈)。");
+                    setCurrentNodeId(null);
+                }
+            }
+            else if (iterStep === 'POP_PROCESS') {
+                if (myStack.length > 0) {
+                    const node = myStack.pop();
+                    setDfsStack(myStack);
+                    setStack(myStack);
+
+                    setCurrentNodeId(node.id);
+
+                    // Count it
+                    myCount++;
+                    setCount(myCount);
+                    setVisitedOrder(prev => [...prev, node.val]);
+
+                    if (myCount === k) {
+                        setIsFinished(true);
+                        setIsPlaying(false);
+                        setFoundVal(node.val);
+                        setMessage(`🎉 找到第 ${k} 小的元素: ${node.val}！`);
+                        return;
+                    }
+
+                    setMessage(`访问节点 ${node.val} (当前计数: ${myCount})。准备转向右子树。`);
+
+                    // Prepare to go right
+                    setCurr(node.right);
+                    setIterStep('PUSH_LEFT'); // Go back to pushing loop for right child
+                } else {
+                    setIsFinished(true);
+                    setIsPlaying(false);
+                    setMessage("遍历结束 (栈空)。");
+                }
+            }
+        };
+
+        // 2. 递归法 (预计算回放)
+        const stepRecursive = () => {
+            const k = parseInt(kInput);
+            if (recIndex >= recursivePath.length) {
+                setIsFinished(true);
+                setIsPlaying(false);
+                setMessage("遍历结束。");
+                return;
+            }
+
+            const node = recursivePath[recIndex];
+            setCurrentNodeId(node.id);
+
+            const newVisited = [...visitedOrder, node.val];
+            setVisitedOrder(newVisited);
+            setCount(recIndex + 1);
+
+            if (recIndex + 1 === k) {
+                // Visual cue for found
+                setMessage(`访问节点 ${node.val}。这是第 ${k} 个元素。结果就是它！`);
+                // Note: Recursive usually doesn't stop, but for finding Kth we can say we found it.
+                // But standard recursive builds whole list then picks.
+                // Let's keep traversing to show "Recursive explores all" (or at least subtree).
+                // Actually, let's stop for better UX.
+                setFoundVal(node.val);
+                setIsFinished(true);
+                setIsPlaying(false);
+                return;
+            }
+
+            setMessage(`访问节点 ${node.val} (计数: ${recIndex + 1})。`);
+            setRecIndex(recIndex + 1);
+        };
+
+        return (
+            <div className="max-w-5xl mx-auto p-6">
+                {/* 1. 配置区 */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+                    <div className="flex items-center gap-2 mb-3 text-slate-700 font-bold">
+                        <Icons.Settings />
+                        <span>数据配置</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1">
+                            <label className="text-xs text-slate-400 font-bold ml-1 mb-1 block">二叉树 (LeetCode 数组格式)</label>
+                            <input
+                                type="text"
+                                value={inputStr}
+                                onChange={(e) => setInputStr(e.target.value)}
+                                className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="w-20">
+                            <label className="text-xs text-slate-400 font-bold ml-1 mb-1 block">K 值</label>
+                            <input
+                                type="number"
+                                min="1"
+                                value={kInput}
+                                onChange={(e) => setKInput(e.target.value)}
+                                className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="flex items-end gap-2">
+                            <button onClick={parseInput} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm h-[42px]">
+                                生成树
+                            </button>
+                            <button onClick={randomInput} className="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition h-[42px]" title="随机生成">
+                                <Icons.Shuffle />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2. 主区域 */}
+                <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                    {/* Header */}
+                    <div className="border-b border-slate-100 bg-slate-50 p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div>
+                            <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <Icons.GitBranch /> 二叉搜索树第 K 小元素
+                            </h1>
+                            <p className="text-xs text-slate-500 mt-1">中序遍历 BST 可以得到有序序列。</p>
+                        </div>
+                        <div className="flex bg-slate-200 p-1 rounded-lg">
+                            <button
+                                onClick={() => { setMode('iterative'); resetState(); }}
+                                className={`px-3 py-1.5 text-sm rounded-md transition-all font-medium ${mode === 'iterative' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                迭代法 (Stack) O(H+K)
+                            </button>
+                            <button
+                                onClick={() => { setMode('recursive'); resetState(); }}
+                                className={`px-3 py-1.5 text-sm rounded-md transition-all font-medium ${mode === 'recursive' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                递归法 (Full) O(N)
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Visualization Canvas */}
+                    <div className="flex flex-col lg:flex-row h-[500px]">
+
+                        {/* Left: Tree View */}
+                        <div className="flex-1 bg-slate-50 relative overflow-hidden border-r border-slate-100">
+                            <svg className="w-full h-full">
+                                {/* Lines */}
+                                {flatNodes.map(node => {
+                                    if (!node) return null;
+                                    return (
+                                        <g key={node.id}>
+                                            {node.left && (
+                                                <line
+                                                    x1={node.x} y1={node.y}
+                                                    x2={node.left.x} y2={node.left.y}
+                                                    stroke="#cbd5e1" strokeWidth="2"
+                                                />
+                                            )}
+                                            {node.right && (
+                                                <line
+                                                    x1={node.x} y1={node.y}
+                                                    x2={node.right.x} y2={node.right.y}
+                                                    stroke="#cbd5e1" strokeWidth="2"
+                                                />
+                                            )}
+                                        </g>
+                                    );
+                                })}
+
+                                {/* Nodes */}
+                                {flatNodes.map(node => {
+                                    const isCurrent = node.id === currentNodeId;
+                                    const isVisited = visitedOrder.includes(node.val);
+                                    const isResult = node.val === foundVal;
+
+                                    let fill = "white";
+                                    let stroke = "#94a3b8"; // slate-400
+                                    let strokeWidth = "2";
+                                    let r = 18;
+
+                                    if (isResult) {
+                                        fill = "#4ade80"; // green-400
+                                        stroke = "#166534"; // green-800
+                                        r = 22;
+                                    } else if (isCurrent) {
+                                        fill = "#60a5fa"; // blue-400
+                                        stroke = "#1e40af"; // blue-800
+                                        r = 22;
+                                    } else if (isVisited) {
+                                        fill = "#e2e8f0"; // slate-200
+                                        stroke = "#64748b"; // slate-500
+                                    }
+
+                                    // Stack indicator
+                                    const inStack = stack.find(s => s.id === node.id);
+
+                                    return (
+                                        <g key={node.id} className="node-transition" style={{transformOrigin: `${node.x}px ${node.y}px`}}>
+                                            <circle
+                                                cx={node.x} cy={node.y} r={r}
+                                                fill={fill} stroke={stroke} strokeWidth={strokeWidth}
+                                                className="transition-all duration-300"
+                                            />
+                                            <text
+                                                x={node.x} y={node.y} dy="0.35em" textAnchor="middle"
+                                                className="text-sm font-bold pointer-events-none" fill={isCurrent || isResult ? "white" : "#475569"}
+                                            >
+                                                {node.val}
+                                            </text>
+                                            {inStack && mode === 'iterative' && !isCurrent && !isVisited && (
+                                                <circle cx={node.x + 12} cy={node.y - 12} r="6" fill="#f59e0b" stroke="white" strokeWidth="1" />
+                                            )}
+                                        </g>
+                                    );
+                                })}
+                            </svg>
+
+                            <div className="absolute top-4 left-4 bg-white/80 p-2 rounded border border-slate-200 text-xs text-slate-500">
+                                <div className="flex items-center gap-2 mb-1"><span className="w-3 h-3 rounded-full bg-blue-400"></span> 当前节点</div>
+                                <div className="flex items-center gap-2 mb-1"><span className="w-3 h-3 rounded-full bg-green-400"></span> 目标结果</div>
+                                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-400"></span> 在栈中</div>
+                            </div>
+                        </div>
+
+                        {/* Right: Data Structures */}
+                        <div className="w-full lg:w-80 bg-white border-l border-slate-100 flex flex-col">
+
+                            {/* Info Box */}
+                            <div className="p-4 border-b border-slate-100 bg-slate-50">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-bold text-slate-400">TARGET</span>
+                                    <span className="text-sm font-bold text-blue-600">K = {kInput}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-400">COUNTER</span>
+                                    <span className="text-2xl font-bold text-slate-800">{count}</span>
+                                </div>
+                            </div>
+
+                            {/* Stack View (Iterative Only) */}
+                            {mode === 'iterative' && (
+                                <div className="flex-1 p-4 overflow-y-auto min-h-[150px] border-b border-slate-100 relative">
+                                    <div className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1">
+                                        <Icons.Layers /> STACK
+                                    </div>
+                                    <div className="flex flex-col-reverse gap-1">
+                                        {stack.length === 0 ? <div className="text-slate-300 text-center text-xs py-4">Empty</div> :
+                                            stack.map((node, i) => (
+                                                <div key={node.id} className="bg-orange-50 border border-orange-200 text-orange-800 px-3 py-2 rounded text-sm font-mono fade-enter">
+                                                    Node: {node.val}
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Sorted Array View */}
+                            <div className="flex-1 p-4 overflow-y-auto">
+                                <div className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1">
+                                    SORTED SEQUENCE (In-order)
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {visitedOrder.map((val, i) => (
+                                        <div
+                                            key={i}
+                                            className={`w-8 h-8 flex items-center justify-center rounded border text-sm font-bold fade-enter
+                                                    ${i + 1 === parseInt(kInput) ? 'bg-green-500 text-white border-green-600' : 'bg-slate-100 text-slate-600 border-slate-200'}
+                                                `}
+                                        >
+                                            {val}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    {/* Controls & Explanation */}
+                    <div className="border-t border-slate-100 p-4 bg-white">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex-1 bg-blue-50 text-blue-800 px-4 py-3 rounded-lg text-sm border-l-4 border-blue-500 w-full sm:w-auto whitespace-pre-line shadow-sm">
+                                {message}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setIsPlaying(!isPlaying)} disabled={isFinished} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition ${isPlaying ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-50`}>
+                                    {isPlaying ? <Icons.Pause /> : <Icons.Play />}
+                                    <span className="hidden sm:inline">{isPlaying ? "暂停" : "自动"}</span>
+                                </button>
+                                <button onClick={stepForward} disabled={isPlaying || isFinished} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition disabled:opacity-50">
+                                    <Icons.Step />
+                                    <span className="hidden sm:inline">单步</span>
+                                </button>
+                                <button onClick={() => resetState()} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition">
+                                    <Icons.Reset />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+</script>
+</body>
+</html>

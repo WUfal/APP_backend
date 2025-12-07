@@ -25,8 +25,9 @@ public class AiChatController {
     public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest request) {
         // 1. 将工作委托给 Service
         String reply = aiChatService.getAiReply(
-                request.message(),
-                request.context()
+                request.history(),
+                request.contextTitle(),
+                request.persona() // <--- 传入
         );
         // 2. 包装并返回
         return ResponseEntity.ok(new ChatResponse(reply));

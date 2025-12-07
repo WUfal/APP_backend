@@ -89,7 +89,8 @@ public class AlgorithmService {
                 entity.getTitle(),
                 entity.getDifficulty(),
                 descBlocks,  // 传入“描述”列表
-                solBlocks    // 传入“题解”列表
+                solBlocks,    // 传入“题解”列表
+                entity.getVisualizationUrl()
         );
     }
 

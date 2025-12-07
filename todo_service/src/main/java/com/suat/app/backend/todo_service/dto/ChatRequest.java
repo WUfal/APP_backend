@@ -1,6 +1,9 @@
 package com.suat.app.backend.todo_service.dto;
 
+import java.util.List;
+
 public record ChatRequest(
-        String message, // 用户的完整消息
-        String context  // (可以为 null) e.g., "viewing: core_oop"
+        List<ChatMessageDto> history, // (不再是 String message)
+        String contextTitle,
+        String persona // <--- (新增)// (不再是 String context)
 ) {}

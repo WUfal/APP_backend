@@ -1,6 +1,7 @@
 package com.suat.app.backend.todo_service.service;
 
 import com.suat.app.backend.todo_service.dto.CodeRunResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.tools.JavaCompiler;
@@ -11,13 +12,24 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
-
+// (新增) 导入徽章和用户相关的类
+import com.suat.app.backend.todo_service.entity.AppUser;
+import com.suat.app.backend.todo_service.repository.AppUserRepository;
+import com.suat.app.backend.todo_service.repository.UserBadgeRepository;
 @Service
 public class SandboxService {
 
-    private static final int TIMEOUT_SECONDS = 5; // 限制代码最长运行5秒
+    private static final int TIMEOUT_SECONDS = 6; // 限制代码最长运行5秒
 
-    public CodeRunResponse compileAndRun(String code) {
+    @Autowired
+    private BadgeService badgeService;
+
+    @Autowired
+    private AppUserRepository appUserRepository;
+
+    @Autowired
+    private UserBadgeRepository userBadgeRepository;
+    public CodeRunResponse compileAndRun(String code, String username) {
 
         // 1. 获取 Java 编译器
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -45,9 +57,22 @@ public class SandboxService {
 
             javaFile = tempDir.resolve(className + ".java");
             classFile = tempDir.resolve(className + ".class");
+             // 我们把这些 import 放在用户代码之前
+            // 注意：这会改变行号，导致报错行号偏大，但为了便利性是值得的
+            String imports = """
+                import java.util.*;
+                import java.util.stream.*;
+                import java.text.*;
+                import java.math.*;
+                
+                import java.io.*;
+                """;
 
-            // 4. 将代码写入 .java 文件
-            Files.writeString(javaFile, code);
+            // 拼接代码
+            String fullCode = imports + "\n" + code;
+
+            // 写入完整代码
+            Files.writeString(javaFile, fullCode);
 
             // 5. 编译
             ByteArrayOutputStream compileErrStream = new ByteArrayOutputStream();
@@ -57,7 +82,15 @@ public class SandboxService {
                 // 编译失败
                 return new CodeRunResponse("", new String(compileErrStream.toByteArray()));
             }
+            //授予徽章
+            AppUser user = appUserRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
+            final String badgeId = "CODE_RUNNER";
+            // (检查是否已拥有)
+            if (!userBadgeRepository.existsByAppUserAndBadgeId(user, badgeId)) {
+                badgeService.checkAndAwardBadge(user, badgeId);
+            }
             // 6. 运行
             ProcessBuilder pb = new ProcessBuilder("java", "-cp", tempDir.toString(), className);
             pb.redirectErrorStream(true); // 将 stderr 合并到 stdout

@@ -29,6 +29,7 @@ public class CourseModuleService {
      * API 1 的逻辑：获取所有模块分组
      * @Transactional(readOnly = true) 是一个优化，告诉 JPA 这是一个只读操作
      */
+    
     @Transactional(readOnly = true)
     public List<com.suat.app.backend.todo_service.dto.ModuleGroup> getAdvancedModules() {
         // 1. 从数据库中获取所有 Entity 实体，并按 sortOrder 排序
